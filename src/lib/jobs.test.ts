@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sortByNewest, formatPostedDate } from './jobs';
+import { getCountriesFromLocation, sortByNewest, formatPostedDate } from './jobs';
 import type { Job } from '../types/job';
 
 function makeJob(slug: string, postedDate: string): Job {
@@ -14,6 +14,23 @@ function makeJob(slug: string, postedDate: string): Job {
         summary: 'A role.',
     };
 }
+
+describe('getCountriesFromLocation', () => {
+    it('normalizes a country from a city and region location', () => {
+        expect(getCountriesFromLocation('Chicago, IL, USA')).toEqual(['United States']);
+    });
+
+    it('returns each country for remote locations', () => {
+        expect(getCountriesFromLocation('Remote (US & Canada)')).toEqual([
+            'United States',
+            'Canada',
+        ]);
+    });
+
+    it('returns no countries for an unrecognized location', () => {
+        expect(getCountriesFromLocation('Remote')).toEqual([]);
+    });
+});
 
 describe('sortByNewest', () => {
     it('orders jobs by posted date, newest first', () => {

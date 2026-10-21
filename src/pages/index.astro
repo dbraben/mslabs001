@@ -3,7 +3,7 @@ import { getCollection } from 'astro:content';
 import Layout from '../layouts/Layout.astro';
 import RoleCard from '../components/RoleCard.astro';
 import EmptyState from '../components/EmptyState.astro';
-import { sortByNewest } from '../lib/jobs';
+import { getCountriesFromLocation, sortByNewest } from '../lib/jobs';
 import type { Job } from '../types/job';
 
 export const prerender = true;
@@ -12,6 +12,7 @@ const entries = await getCollection('jobs');
 const jobs: Job[] = sortByNewest(
     entries.map((entry) => ({ slug: entry.id, ...entry.data })),
 );
+const countries = [...new Set(jobs.flatMap((job) => getCountriesFromLocation(job.location)))].sort();
 ---
 
 <Layout title="Caldova Careers — Open roles">
@@ -24,7 +25,27 @@ const jobs: Job[] = sortByNewest(
       </p>
     </section>
 
-    <h2 class="text-2xl font-medium mb-6 text-slate-100">Open roles</h2>
+    <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <h2 class="text-2xl font-medium text-slate-100">Open roles</h2>
+      {jobs.length > 0 && (
+        <div class="w-full sm:w-64">
+          <label
+            for="location-country-filter"
+            class="mb-2 block text-sm font-medium text-slate-300"
+          >
+            Filter by country
+          </label>
+          <select
+            id="location-country-filter"
+            data-testid="location-country-filter"
+            class="w-full rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+          >
+            <option value="">All countries</option>
+            {countries.map((country) => <option value={country}>{country}</option>)}
+          </select>
+        </div>
+      )}
+    </div>
 
     {jobs.length === 0 ? (
       <EmptyState text="There are no open roles right now. Check back soon." />
@@ -34,7 +55,42 @@ const jobs: Job[] = sortByNewest(
         data-testid="roles-grid"
       >
         {jobs.map((job) => <RoleCard job={job} />)}
+        <p
+          class="col-span-full rounded-xl border border-slate-700 bg-slate-800/60 p-6 text-center text-slate-300"
+          data-testid="location-filter-empty"
+          hidden
+        >
+          No open roles are available in this country.
+        </p>
       </div>
     )}
   </div>
 </Layout>
+
+{jobs.length > 0 && (
+  <script>
+    const countryFilter = document.querySelector<HTMLSelectElement>(
+      '[data-testid="location-country-filter"]',
+    );
+    const roleCards = Array.from(document.querySelectorAll<HTMLElement>('[data-testid="role-card"]'));
+    const emptyMessage = document.querySelector<HTMLElement>(
+      '[data-testid="location-filter-empty"]',
+    );
+
+    countryFilter?.addEventListener('change', () => {
+      const selectedCountry = countryFilter.value;
+      let visibleCount = 0;
+
+      for (const card of roleCards) {
+        const countries = (card.dataset.countries ?? '').split('|').filter(Boolean);
+        const isVisible = !selectedCountry || countries.includes(selectedCountry);
+        card.classList.toggle('hidden', !isVisible);
+        if (isVisible) visibleCount++;
+      }
+
+      if (emptyMessage) {
+        emptyMessage.hidden = visibleCount > 0;
+      }
+    });
+  </script>
+)}

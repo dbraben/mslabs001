@@ -7,6 +7,38 @@
  */
 import type { Job } from '../types/job';
 
+const countryNames: Record<string, string> = {
+    canada: 'Canada',
+    finland: 'Finland',
+    india: 'India',
+    netherlands: 'Netherlands',
+    uk: 'United Kingdom',
+    'united kingdom': 'United Kingdom',
+    'united states': 'United States',
+    us: 'United States',
+    usa: 'United States',
+};
+
+function normalizeCountry(country: string): string | undefined {
+    return countryNames[country.trim().toLowerCase()];
+}
+
+/** Return the country or countries represented by a job location. */
+export function getCountriesFromLocation(location: string): string[] {
+    const remoteLocation = location.match(/^remote\s*\(([^)]+)\)$/i);
+    if (remoteLocation) {
+        return [...new Set(
+            remoteLocation[1]
+                .split('&')
+                .map((country) => normalizeCountry(country))
+                .filter((country): country is string => country !== undefined),
+        )];
+    }
+
+    const country = normalizeCountry(location.split(',').at(-1) ?? '');
+    return country ? [country] : [];
+}
+
 /** Return jobs sorted by posted date, newest first (does not mutate input). */
 export function sortByNewest(jobs: Job[]): Job[] {
     return [...jobs].sort(
